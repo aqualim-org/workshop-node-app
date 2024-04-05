@@ -1,0 +1,79 @@
+
+name: Build and scan
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches: 
+      - '**'
+
+env:
+   DOCKER_REPOSITORY: <dockerhub org name> # name of Docker Hub Org ID
+   IMAGE_NAME: workshop-node-app
+   IMAGE_TAG: ${{ github.run_number }} 
+
+jobs:
+  aqua:
+    name: Aqua Code Scan 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Code Scanner (SCA/SAST/Misconfig/Sensitive Data) 
+        uses: docker://aquasec/aqua-scanner
+        with:
+          args: trivy fs --debug --scanners config,vuln,secret --sast . 
+        env:
+          AQUA_KEY: ${{ secrets.AQUA_KEY }}
+          AQUA_SECRET: ${{ secrets.AQUA_SECRET }}
+          GITHUB_TOKEN: ${{ github.token }}
+          TRIVY_RUN_AS_PLUGIN: 'aqua'
+          # use the below 2 lines only if environments are deployed in eu region
+          # AQUA_URL: https://api.eu-1.supply-chain.cloud.aquasec.com
+          # CSPM_URL: https://eu-1.api.cloudsploit.com
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PAT }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.DOCKER_REPOSITORY}}/${{ env.IMAGE_NAME}}:${{ env.IMAGE_TAG}}
+
+      - name: Login to Aqua Registry
+        uses: docker/login-action@v1
+        with:
+          registry: registry.aquasec.com
+          username: ${{ secrets.AQUA_REGISTRY_USERNAME }}
+          password: ${{ secrets.AQUA_REGISTRY_PASS }}
+          
+      - name: Image Scan with Trivy Premium
+        run: |
+          docker run -e BUILD_JOB_NAME=${{ env.IMAGE_NAME}} -e BUILD_NUMBER=${{ env.IMAGE_TAG }} --rm -v /var/run/docker.sock:/var/run/docker.sock registry.aquasec.com/scanner:2022.4 scan --host ${{ secrets.AQUA_HOST }} --local ${{ env.DOCKER_REPOSITORY}}/${{ env.IMAGE_NAME}}:${{ env.IMAGE_TAG}} --token ${{ secrets.AQUA_TOKEN }} --layer-vulnerabilities --no-verify
+
+      - name: SBOM/Manifest Generation
+        run: |
+          export BILLY_SERVER=https://billy.codesec.aquasec.com
+          curl -sLo install.sh download.codesec.aquasec.com/billy/install.sh
+          curl -sLo install.sh.checksum https://github.com/argonsecurity/releases/releases/latest/download/install.sh.checksum
+          if ! cat install.sh.checksum | sha256sum --check; then
+          echo "install.sh checksum failed"
+          exit 1
+          fi
+          BINDIR="." sh install.sh
+          rm install.sh install.sh.checksum
+          ./billy generate \
+            --access-token "${{ secrets.GITHUB_TOKEN }}" \
+            --aqua-key "${{ secrets.AQUA_KEY }}" \
+            --aqua-secret "${{ secrets.AQUA_SECRET }}" \
+            --artifact-path "${{ env.DOCKER_REPOSITORY}}/${{ env.IMAGE_NAME}}:${{ env.IMAGE_TAG}}" 
+  
