@@ -10,7 +10,7 @@ on:
       - '**'
 
 env:
-   DOCKER_REPOSITORY: <dockerhub org name> # name of Docker Hub Org ID
+   DOCKER_REPOSITORY: aqualim-org # name of Docker Hub Org ID
    IMAGE_NAME: workshop-node-app
    IMAGE_TAG: ${{ github.run_number }} 
 
