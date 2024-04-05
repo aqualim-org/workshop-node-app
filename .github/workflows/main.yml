@@ -60,7 +60,7 @@ jobs:
      #   run: |
      #     docker run -e BUILD_JOB_NAME=${{ env.IMAGE_NAME}} -e BUILD_NUMBER=${{ env.IMAGE_TAG }} --rm -v /var/run/docker.sock:/var/run/docker.sock registry.aquasec.com/scanner:2022.4 scan --host ${{ secrets.AQUA_HOST }} --local ${{ env.DOCKER_REPOSITORY}}/${{ env.IMAGE_NAME}}:${{ env.IMAGE_TAG}} --token ${{ secrets.AQUA_TOKEN }} --layer-vulnerabilities --no-verify
 
-      - name: SBOM/Manifest Generation
+      - name: Manifest Generation
         run: |
           export BILLY_SERVER=https://billy.eu-1.codesec.aquasec.com
           curl -sLo install.sh download.codesec.aquasec.com/billy/install.sh
@@ -75,5 +75,10 @@ jobs:
             --access-token "${{ secrets.GITHUB_TOKEN }}" \
             --aqua-key "${{ secrets.AQUA_KEY }}" \
             --aqua-secret "${{ secrets.AQUA_SECRET }}" \
-            --artifact-path "${{ env.DOCKER_REPOSITORY}}/${{ env.IMAGE_NAME}}:${{ env.IMAGE_TAG}}" 
-  
+            --cspm-url https://eu-1.api.cloudsploit.com \
+            --artifact-path "my-image-name:${{ env.tag-version }}" 
+
+            # The docker image name:tag of the newly built image
+            # --artifact-path "my-image-name:${{ env.tag-version }}" 
+            # OR the path to the root folder of your project. I.e my-repo/my-app 
+            # --artifact-path "${{env.MY_APP_ROOT}}"
