@@ -62,7 +62,7 @@ jobs:
 
       - name: SBOM/Manifest Generation
         run: |
-          export BILLY_SERVER=https://billy.codesec.aquasec.com
+          export BILLY_SERVER=https://billy.eu-1.codesec.aquasec.com
           curl -sLo install.sh download.codesec.aquasec.com/billy/install.sh
           curl -sLo install.sh.checksum https://github.com/argonsecurity/releases/releases/latest/download/install.sh.checksum
           if ! cat install.sh.checksum | sha256sum --check; then
